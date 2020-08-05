@@ -81,7 +81,7 @@ lastIdentity = '0'
 repetition = 0
 
 command1 = """osascript -e 'tell application "system events" to keystroke return'"""
-command2 = """osascript -e 'tell application "system events" to keystroke "Edifice@0970415531"'"""
+command2 = """osascript -e 'tell application "system events" to keystroke "put the password here"'"""  # put the password here
 command3 = """osascript -e 'tell application "system events" to keystroke return'"""
 
 # canRun = True

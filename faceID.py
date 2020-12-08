@@ -9,12 +9,6 @@ from fr_utils import *
 from inception_blocks_v2 import *
 from keras import backend as KerasBackEnd
 
-KerasBackEnd.set_image_data_format('channels_first')
-
-model = faceRecoModel(input_shape=(3, 96, 96))
-
-print("setup successful")
-
 
 def tripletLoss(label_true, label_pred, alpha=0.3):
     anchor, positive, negative = label_pred[0], label_pred[1], label_pred[2]
@@ -28,17 +22,6 @@ def tripletLoss(label_true, label_pred, alpha=0.3):
     loss = tf.reduce_sum(tf.maximum(normalLoss, 0.0))
 
     return loss
-
-
-model.compile(
-    optimizer='adam',
-    loss=tripletLoss,
-    metrics=['accuracy']
-)
-
-load_weights_from_FaceNet(model)
-
-# model.save('faceNet.h5')
 
 
 def prepareFaceDatabase():
@@ -69,35 +52,16 @@ def faceClassification(image, database, model):
         return identity
 
 
-faceDatabase = prepareFaceDatabase()
+def lockscreen():
+    os.system('open -a ScreenSaverEngine')
 
-faceCascade = opencv.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-lastx = 0
-lasty = 0
-lastw = 0
-lasth = 0
-lastIdentity = '0'
-repetition = 0
-
-command1 = """osascript -e 'tell application "system events" to keystroke return'"""
-command2 = """osascript -e 'tell application "system events" to keystroke "put the password here"'"""  # put the password here
-command3 = """osascript -e 'tell application "system events" to keystroke return'"""
-
-# canRun = True
-frameCapture = opencv.VideoCapture(0)
-
-# def checkStatus():
-#     global frameCapture
-#     with open('running.txt', mode='r') as configFile:
-#         status = configFile.read()
-#         if status == True:
-#             canRun = True
-#             frameCapture = opencv.VideoCapture(0)
-#             time.sleep(3)
-#         else:
-#             canRun = False
-#             frameCapture.release()
+def unlockscreen():
+    os.system(command1)
+    time.sleep(0.1)
+    os.system(command2)
+    time.sleep(0.1)
+    os.system(command3)
 
 
 def doFaceClassification():
@@ -172,30 +136,50 @@ def doFaceClassification():
             return '0'
 
 
-def lockscreen():
-    os.system('open -a ScreenSaverEngine')
+KerasBackEnd.set_image_data_format('channels_first')
 
+model = faceRecoModel(input_shape=(3, 96, 96))
 
-def unlockscreen():
-    os.system(command1)
-    os.system(command2)
-    os.system(command3)
+print("setup successful")
 
+model.compile(
+    optimizer='adam',
+    loss=tripletLoss,
+    metrics=['accuracy']
+)
+
+load_weights_from_FaceNet(model)
+
+model.save('CustomFaceIDFaceNet.h5')
+
+faceDatabase = prepareFaceDatabase()
+
+faceCascade = opencv.CascadeClassifier('haarcascade_frontalface_default.xml')
+
+lastx = 0
+lasty = 0
+lastw = 0
+lasth = 0
+repetition = 0
+lastIdentity = '0'
+
+command1 = """osascript -e 'tell application "system events" to keystroke return'"""
+command2 = """osascript -e 'tell application "system events" to keystroke "Edifice@0970415531"'"""  # put the password here
+command3 = """osascript -e 'tell application "system events" to keystroke return'"""
+
+frameCapture = opencv.VideoCapture(0)
 
 wrongFace = 0
 noFace = 0
+
 locked = False
 ignoredStart = time.time()
 currentIgnored = time.time()
 lastFace = None
-# count = 0
 
 print("ready to go")
 
 while True:
-    # count += 1
-    # if count >= 70:
-    #     checkStatus()
     face = doFaceClassification()
 
     if face == '1':

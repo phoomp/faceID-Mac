@@ -9,6 +9,8 @@ from fr_utils import *
 from inception_blocks_v2 import *
 from keras import backend as KerasBackEnd
 
+import uuid
+
 
 def tripletLoss(label_true, label_pred, alpha=0.3):
     anchor, positive, negative = label_pred[0], label_pred[1], label_pred[2]
@@ -27,7 +29,7 @@ def tripletLoss(label_true, label_pred, alpha=0.3):
 def prepareFaceDatabase():
     database = {}
 
-    for file in glob.glob("pos2/*"):
+    for file in glob.glob("pos/*"):
         identity = os.path.splitext(os.path.basename(file))[0]
         database[identity] = img_path_to_encoding(file, model)
 
@@ -45,6 +47,8 @@ def faceClassification(image, database, model):
         if dist < minDist:
             minDist = dist
             identity = name
+            
+    print(f'minDist: {minDist}')
 
     if minDist > 0.50:
         return '0'
@@ -94,7 +98,7 @@ def doFaceClassification():
                         2) < 75 and (abs(w - lastw) + abs(h - lasth)/2) < 75
 
             if sameFace and repetition >= 20:
-                # print("Skipped: " + lastIdentity)
+                print("Skipped: " + lastIdentity)
                 time.sleep(0.5)
                 if 'phoom' in str(lastIdentity):
                     return '1'
@@ -106,6 +110,7 @@ def doFaceClassification():
             frame = opencv.rectangle(
                 frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
             img = frame[y: y + h, x: x + w]
+            # cv2.imwrite(f'pos/phoom{uuid.uuid4()}.jpg', img)
             identity = faceClassification(img, faceDatabase, model)
             if 'phoom' in identity:
                 identity = 'phoom'
@@ -118,12 +123,12 @@ def doFaceClassification():
                 repetition = 0
                 lastIdentity = identity
 
-            # print(abs(x - lastx) + abs(y - lasty)/2)
-            # print("\n")
-            # print(abs(w - lastw) + abs(h - lasth)/2)
-            # print("\n")
-            # print(lastIdentity)
-            # print(str(repetition))
+            print(abs(x - lastx) + abs(y - lasty)/2)
+            print("\n")
+            print(abs(w - lastw) + abs(h - lasth)/2)
+            print("\n")
+            print(f'lastIdentity: {lastIdentity}')
+            print('repetition: ' + str(repetition))
 
             lastx = x
             lasty = y
@@ -131,8 +136,10 @@ def doFaceClassification():
             lastw = w
 
         if 'phoom' in str(identity):
+            print(f'Yes')
             return '1'
         else:
+            print('No')
             return '0'
 
 
@@ -164,7 +171,7 @@ repetition = 0
 lastIdentity = '0'
 
 command1 = """osascript -e 'tell application "system events" to keystroke return'"""
-command2 = """osascript -e 'tell application "system events" to keystroke "Edifice@0970415531"'"""  # put the password here
+command2 = """osascript -e 'tell application "system events" to keystroke "1234567890"'"""  # put the password here
 command3 = """osascript -e 'tell application "system events" to keystroke return'"""
 
 frameCapture = opencv.VideoCapture(0)

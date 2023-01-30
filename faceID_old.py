@@ -21,9 +21,9 @@ parser.add_argument('-n', '--name', action='store_true', help='provide the name 
 args = parser.parse_args()
 
 print(tf.__version__)
-devices = tf.config.list_physical_devices('GPU')
-tf.config.set_visible_devices([], 'GPU')
-print(tf.config.list_logical_devices('GPU'))
+# devices = tf.config.list_physical_devices('GPU')
+# tf.config.set_visible_devices([], 'GPU')
+# print(tf.config.list_logical_devices('GPU'))
 
 if args.name:
     print(f'Training mode: name = {args.name}')
@@ -54,8 +54,8 @@ def prepareFaceDatabase():
 
 def faceClassification(image, database, model):
     encoding = img_to_encoding(image, model)
-    print(encoding)
-    print(encoding.shape)
+    # print(encoding)
+    # print(encoding.shape)
 
     identity = None
     minDist = 100
@@ -178,15 +178,22 @@ model.compile(
 
 load_weights_from_FaceNet(model)
 model.summary()
+
+### SAVING ###
+
 model.save('CustomFaceIDFaceNet')
 
 config = model.get_config() # Returns pretty much every information about your model
 print(config["layers"][0]["config"]["batch_input_shape"])
 
-mlmodel = coremltools.convert(model, convert_to='mlprogram', inputs=[coremltools.ImageType(channel_first=True)])
-mlmodel.save('FaceNet.mlpackage')
+mlmodel = coremltools.convert(model, convert_to='mlprogram', inputs=[coremltools.ImageType(channel_first=True, color_layout='BGR', scale=1.0/255)])
+mlmodel.save('FaceNet3.mlpackage')
 
 print('Converted and saved to .mlmodel')
+
+exit(0)
+
+### SAVING ###
 
 faceDatabase = prepareFaceDatabase()
 

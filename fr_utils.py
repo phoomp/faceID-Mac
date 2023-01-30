@@ -196,7 +196,11 @@ def img_path_to_encoding(image_path, model):
 def img_to_encoding(image, model):
     image = cv2.resize(image, (96, 96)) 
     img = image[...,::-1]
+    print(f'Internal shape: {img.shape}')
     img = np.around(np.transpose(img, (2,0,1))/255.0, decimals=12)
+    print(f'New shape: {img.shape}')
+    # print(img)
+    # print(img.shape)
     x_train = np.array([img])
     embedding = model.predict_on_batch(x_train)
     return embedding

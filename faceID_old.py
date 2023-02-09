@@ -189,6 +189,7 @@ print(config["layers"][0]["config"]["batch_input_shape"])
 mlmodel = coremltools.convert(model, convert_to='mlprogram', inputs=[coremltools.ImageType(channel_first=True, color_layout='BGR', scale=1.0/255)])
 mlmodel.save('FaceNet3.mlpackage')
 
+
 print('Converted and saved to .mlmodel')
 
 exit(0)

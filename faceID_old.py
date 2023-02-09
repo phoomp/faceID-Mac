@@ -179,6 +179,30 @@ model.compile(
 
 load_weights_from_FaceNet(model)
 
+def convert_keras_to_mlmodel(keras_url, mlmodel_url):
+    # Only import things we need
+    from keras.models import load_model
+    keras_model = load_model(keras_url)
+
+    keras_model.summary()
+
+    class_labels = ['Valid', 'Invalid', 'Obstructed']
+    mlmodel = coremltools.convert(
+        keras_model,
+        inputs=[coremltools.ImageType(channel_first=True, color_layout='BGR', scale=1.0/255)],
+    )
+
+    mlmodel.save(mlmodel_url)
+
+def make_updatable(builder, model_url, mlmodel_updatable_path):
+    model_spec = builder.spec
+    builder.make_updatable(['sequential/dense/MatMul'])
+    builder.set_category_cross_entropy_loss(name='lossLayer', input='sequential/dense/Softmax')
+    builder.set_adam_optimizer(AdamParams(lr=1e-2, batch=32))
+    builder.set_epoch(20)
+
+    mlmodel_updatable = coremltools.models.MLModel(model_spec)
+    mlmodel_updatable.save(mlmodel_updatable_path)
 
 ### SAVING ###
 
@@ -188,17 +212,34 @@ config = model.get_config() # Returns pretty much every information about your m
 print(config["layers"][0]["config"]["batch_input_shape"])
 
 # Add another layer
-custom_model = tf.keras.Sequential([
-    model,
-    tf.keras.layers.Dense(3, activation='softmax')
-])
+h5_save_path = 'facenet.h5'
+custom_model = tf.keras.Sequential()
+custom_model.add(model)
+custom_model.add(tf.keras.layers.Dense(3, activation='softmax'))
 
-custom_model.summary()
+custom_model.compile(loss=tf.keras.losses.categorical_crossentropy,
+                     optimizer=tf.keras.optimizers.Adam(),
+                     metrics=['accuracy'])
 
-save_name = 'FaceNet5.mlmodel'
+custom_model.save(h5_save_path)
 
-mlmodel = coremltools.convert(custom_model, inputs=[coremltools.ImageType(channel_first=True, color_layout='BGR', scale=1.0/255)])
-mlmodel.save(save_name)
+# CoreML Model
+coreml_model_path = 'IdentityClassifier.mlmodel'
+convert_keras_to_mlmodel(h5_save_path, coreml_model_path)
+
+spec = coremltools.utils.load_spec(coreml_model_path)
+builder = coremltools.models.neural_network.NeuralNetworkBuilder(spec=spec)
+builder.inspect_layers(last=10)
+
+builder.inspect_output_features()
+neuralnetwork_spec = builder.spec
+
+coreml_updatable_model_path = './UpdatableFacenet.mlmodel'
+make_updatable(builder, coreml_model_path, coreml_updatable_model_path)
+
+# TODO: use keras instead of tensorflow
+
+exit(0)
 
 print('Converted and saved to .mlmodel')
 print('Reloading and adding layers')
@@ -219,7 +260,7 @@ spec.neuralNetworkClassifier.stringClassLabels.vector.extend(labels)
 
 # Builder
 builder = NeuralNetworkBuilder(spec=model._spec)
-builder.make_updatable(['sequential/dense/Softmax'])
+builder.make_updatable(['out'])
 builder.set_categorical_cross_entropy_loss(name='lossLayer', input='labelProbability')
 builder.spec.description.trainingInput[0].shortDescription = 'Example Image'
 builder.spec.description.trainingInput[1].shortDescription = 'True Label'

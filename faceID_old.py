@@ -6,6 +6,7 @@ import cv2 as opencv
 import tensorflow as tf
 
 import coremltools
+from coremltools.models.neural_network import NeuralNetworkBuilder, AdamParams
 
 from fr_utils import *
 from inception_blocks_v2 import *
@@ -177,7 +178,7 @@ model.compile(
 )
 
 load_weights_from_FaceNet(model)
-model.summary()
+
 
 ### SAVING ###
 
@@ -186,11 +187,50 @@ model.save('CustomFaceIDFaceNet')
 config = model.get_config() # Returns pretty much every information about your model
 print(config["layers"][0]["config"]["batch_input_shape"])
 
-mlmodel = coremltools.convert(model, convert_to='mlprogram', inputs=[coremltools.ImageType(channel_first=True, color_layout='BGR', scale=1.0/255)])
-mlmodel.save('FaceNet3.mlpackage')
+# Add another layer
+custom_model = tf.keras.Sequential([
+    model,
+    tf.keras.layers.Dense(3, activation='softmax')
+])
 
+custom_model.summary()
+
+save_name = 'FaceNet5.mlmodel'
+
+mlmodel = coremltools.convert(custom_model, inputs=[coremltools.ImageType(channel_first=True, color_layout='BGR', scale=1.0/255)])
+mlmodel.save(save_name)
 
 print('Converted and saved to .mlmodel')
+print('Reloading and adding layers')
+
+model = coremltools.models.MLModel(save_name)
+spec = model._spec
+
+print([inp.name for inp in spec.description.input])
+print([out.name for out in spec.description.output])
+with open('model_spec.yaml', 'w+') as f:
+    f.write(str(spec))
+
+layer = spec.neuralNetwork.layers[-1]
+print(layer)
+labels = ['Valid', 'Invalid', 'Obstructed']
+
+spec.neuralNetworkClassifier.stringClassLabels.vector.extend(labels)
+
+# Builder
+builder = NeuralNetworkBuilder(spec=model._spec)
+builder.make_updatable(['sequential/dense/Softmax'])
+builder.set_categorical_cross_entropy_loss(name='lossLayer', input='labelProbability')
+builder.spec.description.trainingInput[0].shortDescription = 'Example Image'
+builder.spec.description.trainingInput[1].shortDescription = 'True Label'
+
+adam_params = AdamParams(lr=1e-3, batch=8, momentum=0)
+adam_params.set_batch(8, [1, 2, 4, 8, 16, 32, 64, 128, 256, 1024])
+builder.set_adam_optimizer(adam_params)
+builder.set_epochs(10, list(range(10, 1000, step=5)))
+
+coremltools.utils.save_spec(builder.spec, 'CustomizableFacenet.mlpackage')
+
 
 exit(0)
 

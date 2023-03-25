@@ -3,7 +3,6 @@ import glob
 import time
 import numpy as np
 import cv2 as opencv
-import tensorflow as tf
 
 import coremltools
 from coremltools.models.neural_network import NeuralNetworkBuilder, AdamParams
@@ -21,7 +20,6 @@ parser.add_argument('-n', '--name', action='store_true', help='provide the name 
 
 args = parser.parse_args()
 
-print(tf.__version__)
 # devices = tf.config.list_physical_devices('GPU')
 # tf.config.set_visible_devices([], 'GPU')
 # print(tf.config.list_logical_devices('GPU'))
@@ -171,11 +169,11 @@ model = faceRecoModel(input_shape=(3, 96, 96))
 
 print("setup successful")
 
-model.compile(
-    optimizer='adam',
-    loss=tripletLoss,
-    metrics=['accuracy']
-)
+# # model.compile(
+#     optimizer='adam',
+#     loss=tripletLoss,
+#     metrics=['accuracy']
+# )
 
 load_weights_from_FaceNet(model)
 
@@ -205,20 +203,25 @@ def make_updatable(builder, model_url, mlmodel_updatable_path):
     mlmodel_updatable.save(mlmodel_updatable_path)
 
 ### SAVING ###
+import keras
+from keras.models import load_model
 
-model.save('CustomFaceIDFaceNet')
+model.save('CustomFaceIDFaceNet.h5')
+model = load_model('CustomFaceIDFaceNet.h5')
 
 config = model.get_config() # Returns pretty much every information about your model
 print(config["layers"][0]["config"]["batch_input_shape"])
 
+
+
 # Add another layer
 h5_save_path = 'facenet.h5'
-custom_model = tf.keras.Sequential()
+custom_model = keras.Sequential()
 custom_model.add(model)
-custom_model.add(tf.keras.layers.Dense(3, activation='softmax'))
+custom_model.add(keras.layers.Dense(3, activation='softmax'))
 
-custom_model.compile(loss=tf.keras.losses.categorical_crossentropy,
-                     optimizer=tf.keras.optimizers.Adam(),
+custom_model.compile(loss=keras.losses.categorical_crossentropy,
+                     optimizer=keras.optimizers.Adam(),
                      metrics=['accuracy'])
 
 custom_model.save(h5_save_path)
